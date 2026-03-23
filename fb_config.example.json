@@ -1,0 +1,21 @@
+{
+  "youtube": {
+    "channel_url": "https://www.youtube.com/channel/YOUR_CHANNEL_ID",
+    "allowed_oauth_channel_ids": [
+      "YOUR_OAUTH_CHANNEL_ID"
+    ]
+  },
+  "calendar": {
+    "url": "http://your-calendar-server:8000/calendar_cache.json",
+    "timezone": "America/Los_Angeles",
+    "coverage_days": 10,
+    "gap_minutes": 15
+  },
+  "defaults": {
+    "calendar_youtube_coverage": false,
+    "fb_lead_minutes": 15,
+    "refresh_streams": true,
+    "fetch_video_details": false,
+    "include_youtube_link_in_description": true
+  }
+}
