@@ -421,15 +421,23 @@ def _normalize_service_summary(summary: str) -> str:
 
 
 def _service_label_from_names(names: list[str]) -> str:
+    """Build a display label from raw calendar summaries.
+
+    Uses exact calendar names so service titles appear as entered.
+    Only collapses Orthros + Divine Liturgy or 9th Hour + Pre-Sanctified
+    into a combined label when both appear in the same block.
+    """
     ordered: list[str] = []
     for name in names:
-        n = _normalize_service_summary(name)
-        if n and n not in ordered:
-            ordered.append(n)
+        clean = name.strip()
+        if clean and clean not in ordered:
+            ordered.append(clean)
 
-    if "Orthros" in ordered and "Divine Liturgy" in ordered:
+    # Check for canonical combined pairs using normalized matching
+    normed = [_normalize_service_summary(n) for n in ordered]
+    if "Orthros" in normed and "Divine Liturgy" in normed:
         return "Orthros & Divine Liturgy"
-    if "9th Hour Prayers" in ordered and "Pre-Sanctified Divine Liturgy" in ordered:
+    if "9th Hour Prayers" in normed and "Pre-Sanctified Divine Liturgy" in normed:
         return "9th Hour Prayers & Pre-Sanctified Divine Liturgy"
     if not ordered:
         return "Service"
