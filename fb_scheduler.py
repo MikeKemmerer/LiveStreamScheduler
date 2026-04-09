@@ -463,6 +463,16 @@ def _service_tokens(value: str) -> set[str]:
         tokens.add("great_compline")
     if "akathist" in lower:
         tokens.add("akathist_hymn")
+    if "bridegroom" in lower or "nymphios" in lower:
+        tokens.add("bridegroom")
+    if "unction" in lower:
+        tokens.add("unction")
+    if "lamentations" in lower:
+        tokens.add("lamentations")
+    if "royal hours" in lower:
+        tokens.add("royal_hours")
+    if "paraklesis" in lower or "paraclesis" in lower:
+        tokens.add("paraklesis")
     return tokens
 
 
@@ -819,10 +829,16 @@ def build_calendar_youtube_coverage_report(
     for block in blocks:
         block_day = block["local_day"]
         block_start = block["start"]
+        block_tokens = block.get("service_tokens")
+        block_token_set = block_tokens if isinstance(block_tokens, set) else set()
+        block_label = str(block.get("service_label") or "").lower()
 
         matched_stream: dict[str, Any] | None = None
         matched_stream_index: int | None = None
         best_time_diff: float | None = None
+        # Fallback candidate: same-day label match for streams without timestamps
+        fallback_stream: dict[str, Any] | None = None
+        fallback_stream_index: int | None = None
 
         for idx, stream in enumerate(stream_index):
             if idx in used_stream_indexes:
@@ -830,8 +846,9 @@ def build_calendar_youtube_coverage_report(
             if stream["local_day"] != block_day:
                 continue
 
-            # Match by scheduled start time proximity
             stream_start = stream.get("start")
+
+            # Primary: match by scheduled start time proximity
             if stream_start is not None and block_start is not None:
                 diff_seconds = abs((stream_start - block_start).total_seconds())
                 if diff_seconds <= 3600:  # within 60 minutes
@@ -839,6 +856,27 @@ def build_calendar_youtube_coverage_report(
                         best_time_diff = diff_seconds
                         matched_stream = stream
                         matched_stream_index = idx
+                continue
+
+            # Fallback: for streams without timestamps (was_live flat playlist),
+            # match by service label or tokens on the same day
+            if stream_start is None and fallback_stream is None:
+                stream_token_set = stream.get("service_tokens")
+                if not isinstance(stream_token_set, set):
+                    stream_token_set = set()
+                stream_label = str(stream.get("service_label") or "").lower()
+
+                if block_token_set and stream_token_set and block_token_set.intersection(stream_token_set):
+                    fallback_stream = stream
+                    fallback_stream_index = idx
+                elif block_label and stream_label and block_label == stream_label:
+                    fallback_stream = stream
+                    fallback_stream_index = idx
+
+        # Use time match if found, otherwise fall back to label match
+        if matched_stream is None and fallback_stream is not None:
+            matched_stream = fallback_stream
+            matched_stream_index = fallback_stream_index
 
         if matched_stream is not None:
             if matched_stream_index is not None:
