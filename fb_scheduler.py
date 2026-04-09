@@ -587,6 +587,7 @@ def _build_stream_index(entries: list[dict[str, Any]], tz) -> list[dict[str, Any
             {
                 "title": title,
                 "url": str(entry.get("url") or "").strip(),
+                "start": when,
                 "local_day": local_day,
                 "service_label": normalized_service,
                 "service_tokens": _service_tokens(normalized_service),
@@ -813,11 +814,11 @@ def build_calendar_youtube_coverage_report(
 
     for block in blocks:
         block_day = block["local_day"]
+        block_start = block["start"]
 
         matched_stream: dict[str, Any] | None = None
         matched_stream_index: int | None = None
-        block_tokens = block.get("service_tokens")
-        token_set = block_tokens if isinstance(block_tokens, set) else set()
+        best_time_diff: float | None = None
 
         for idx, stream in enumerate(stream_index):
             if idx in used_stream_indexes:
@@ -825,20 +826,15 @@ def build_calendar_youtube_coverage_report(
             if stream["local_day"] != block_day:
                 continue
 
-            stream_tokens = stream.get("service_tokens")
-            stream_token_set = stream_tokens if isinstance(stream_tokens, set) else set()
-
-            if token_set and stream_token_set and token_set.intersection(stream_token_set):
-                matched_stream = stream
-                matched_stream_index = idx
-                break
-
-            stream_label = str(stream.get("service_label") or "").lower()
-            block_label = str(block.get("service_label") or "").lower()
-            if block_label and block_label in stream_label:
-                matched_stream = stream
-                matched_stream_index = idx
-                break
+            # Match by scheduled start time proximity
+            stream_start = stream.get("start")
+            if stream_start is not None and block_start is not None:
+                diff_seconds = abs((stream_start - block_start).total_seconds())
+                if diff_seconds <= 3600:  # within 60 minutes
+                    if best_time_diff is None or diff_seconds < best_time_diff:
+                        best_time_diff = diff_seconds
+                        matched_stream = stream
+                        matched_stream_index = idx
 
         if matched_stream is not None:
             if matched_stream_index is not None:

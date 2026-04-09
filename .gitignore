@@ -9,6 +9,7 @@ __pycache__/
 # Credentials (generic patterns)
 fb_config.local.json
 client_secret_*.json
+nodal-ivy-*.json
 *service_account*.json
 *.p12
 *.pem
