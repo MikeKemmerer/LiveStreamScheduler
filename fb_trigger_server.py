@@ -105,8 +105,12 @@ def _render_coverage_html(
         matched_obj = report.get("matched_divine")
     matched = matched_obj if isinstance(matched_obj, list) else []
 
+    recorded_obj = report.get("recorded_services")
+    recorded = recorded_obj if isinstance(recorded_obj, list) else []
+
     missing_count = report.get("service_blocks_missing", report.get("divine_blocks_missing", 0))
     matched_count = report.get("service_blocks_matched", report.get("divine_blocks_matched", 0))
+    recorded_count = report.get("service_blocks_recorded", 0)
     total_count = report.get("service_blocks_total", report.get("divine_blocks_total", 0))
 
     out = [
@@ -118,6 +122,7 @@ def _render_coverage_html(
         '<div class="mission-stats">',
         f'<button type="button" class="stat-chip stat-filter is-active" data-filter="all">Total: {html.escape(str(total_count))}</button>',
         f'<button type="button" class="stat-chip stat-filter stat-ok" data-filter="scheduled">Scheduled: {html.escape(str(matched_count))}</button>',
+        f'<button type="button" class="stat-chip stat-filter stat-recorded" data-filter="recorded">Recorded: {html.escape(str(recorded_count))}</button>',
         f'<button type="button" class="stat-chip stat-filter stat-attn" data-filter="unscheduled">Unscheduled: {html.escape(str(missing_count))}</button>',
         '</div>',
         '<div class="mission-grid">',
@@ -280,7 +285,44 @@ def _render_coverage_html(
         out.append('<h3>Scheduled Queue</h3>')
         out.extend(scheduled_cards)
 
+    # Recorded services (already broadcast)
+    recorded_cards: list[str] = []
+    recorded_compact_items: list[str] = []
+    for rec_item in recorded:
+        if not isinstance(rec_item, dict):
+            continue
+        service_txt = html.escape(str(rec_item.get("service_label") or "Service"))
+        date_txt = html.escape(str(rec_item.get("date") or ""))
+        title_raw = str(rec_item.get("youtube_title") or "").strip()
+        if not title_raw:
+            title_raw = "Recorded Livestream"
+        title_txt = html.escape(title_raw)
+        url_txt = html.escape(str(rec_item.get("youtube_url") or ""), quote=True)
+        rec_idx = len(recorded_cards) + 1
+        body_id = f"rec-body-{rec_idx}"
+        recorded_cards.append(
+            '<div class="card recorded-item stream-item" data-stream-status="recorded">'
+            f'<div class="copy-row"><p><strong>Recorded {rec_idx}</strong> <span class="status-chip status-recorded">Recorded</span></p><button class="ghost-btn toggle-draft-btn" data-target-body="{body_id}" type="button">Collapse</button></div>'
+            f'<div id="{body_id}" class="draft-body">'
+            f'<p><strong>Date:</strong> {date_txt}</p>'
+            f'<p><strong>Service:</strong> {service_txt}</p>'
+            f'<p><strong>YouTube:</strong> <a href="{url_txt}" target="reference-pane" rel="noopener" onclick="activateRightTab(\'reference\');">{title_txt or url_txt}</a></p>'
+            '</div>'
+            '</div>'
+        )
+        recorded_compact_items.append(
+            '<div class="recorded-item stream-item" data-stream-status="recorded">'
+            f'<p><strong>{service_txt}</strong> <small>{date_txt}</small></p>'
+            f'<p><a href="{url_txt}" target="reference-pane" rel="noopener" onclick="activateRightTab(\'reference\');">{title_txt or url_txt}</a></p>'
+            '</div>'
+        )
+
+    if recorded_cards:
+        out.append('<h3>Recorded Queue</h3>')
+        out.extend(recorded_cards)
+
     scheduled_html = "".join(scheduled_compact_items) if scheduled_compact_items else "<p>No already-scheduled services in this coverage window.</p>"
+    recorded_html = "".join(recorded_compact_items) if recorded_compact_items else ""
     out.extend(
         [
             '</section>',
@@ -290,7 +332,7 @@ def _render_coverage_html(
           '<button type="button" class="tab-btn" data-tab="reference" role="tab" aria-selected="false" onclick="activateRightTab(\'reference\')">Reference</button>',
           '<button type="button" class="tab-btn" data-tab="activity" role="tab" aria-selected="false" onclick="activateRightTab(\'activity\')">Activity</button>',
             '</div>',
-            f'<section class="tab-panel" data-panel="scheduled" id="panel-scheduled">{scheduled_html}</section>',
+            f'<section class="tab-panel" data-panel="scheduled" id="panel-scheduled">{scheduled_html}{recorded_html}</section>',
             '<section class="tab-panel is-hidden" data-panel="reference">',
           '<p>Use this panel for side-by-side context while you complete pending drafts. If GOARCH blocks embedding, use the link below.</p>',
           '<p><a href="https://www.goarch.org" target="_blank" rel="noopener">Open GOARCH in a new tab</a></p>',
@@ -709,6 +751,7 @@ class Handler(BaseHTTPRequestHandler):
       .stat-filter {{ cursor: pointer; }}
       .stat-filter.is-active {{ outline: 2px solid var(--accent); outline-offset: 1px; }}
       .stat-chip.stat-ok {{ color: var(--ok); }}
+      .stat-chip.stat-recorded {{ color: #6c7ae0; }}
       .stat-chip.stat-attn {{ color: var(--attn); }}
       .mission-grid {{ display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); gap: 16px; align-items: start; }}
       .mission-left, .mission-right {{ background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }}
@@ -723,9 +766,13 @@ class Handler(BaseHTTPRequestHandler):
       .status-done {{ color: var(--ok); background: #e9f8ee; }}
       body.theme-dark .status-pending {{ background: #3a2d17; color: var(--attn); }}
       body.theme-dark .status-done {{ background: #193325; color: var(--ok); }}
+      .status-recorded {{ color: #6c7ae0; background: #edeffe; }}
+      body.theme-dark .status-recorded {{ background: #1e1f3a; color: #8b9af0; }}
       .draft-card.is-complete {{ border-left: 5px solid var(--ok); }}
       .scheduled-item {{ border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 8px; background: var(--card); }}
       .scheduled-item p {{ margin: 4px 0; }}
+      .recorded-item {{ border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 8px; background: var(--card); }}
+      .recorded-item p {{ margin: 4px 0; }}
       .reference-frame {{ width: 100%; min-height: 420px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }}
       .activity-list {{ list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }}
       .activity-item {{ border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: var(--card); }}
@@ -783,14 +830,14 @@ class Handler(BaseHTTPRequestHandler):
       }}
 
       function applyStreamFilter(mode) {{
-        const normalized = mode === 'scheduled' || mode === 'unscheduled' ? mode : 'all';
+        const normalized = (mode === 'scheduled' || mode === 'unscheduled' || mode === 'recorded') ? mode : 'all';
         document.querySelectorAll('.stream-item[data-stream-status]').forEach((item) => {{
           const status = item.dataset.streamStatus || '';
           const visible = normalized === 'all' || status === normalized;
           item.classList.toggle('is-filtered-out', !visible);
         }});
 
-        if (normalized === 'scheduled') {{
+        if (normalized === 'scheduled' || normalized === 'recorded') {{
           activateRightTab('scheduled');
         }} else if (normalized === 'unscheduled') {{
           activateRightTab('reference');

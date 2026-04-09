@@ -583,11 +583,14 @@ def _build_stream_index(entries: list[dict[str, Any]], tz) -> list[dict[str, Any
         service_from_title = _extract_service_from_stream_title(title)
         normalized_service = _service_label_from_names([service_from_title])
 
+        live_status = (entry.get("live_status") or "").strip().lower()
+
         indexed.append(
             {
                 "title": title,
                 "url": str(entry.get("url") or "").strip(),
                 "start": when,
+                "live_status": live_status,
                 "local_day": local_day,
                 "service_label": normalized_service,
                 "service_tokens": _service_tokens(normalized_service),
@@ -809,6 +812,7 @@ def build_calendar_youtube_coverage_report(
         on_log("Matching service blocks to streams...")
 
     matched_services: list[dict[str, Any]] = []
+    recorded_services: list[dict[str, Any]] = []
     missing_services: list[dict[str, Any]] = []
     used_stream_indexes: set[int] = set()
 
@@ -839,14 +843,26 @@ def build_calendar_youtube_coverage_report(
         if matched_stream is not None:
             if matched_stream_index is not None:
                 used_stream_indexes.add(matched_stream_index)
-            matched_services.append(
-                {
-                    "date": _format_long_date(block_day),
-                    "service_label": block["service_label"],
-                    "youtube_title": matched_stream["title"],
-                    "youtube_url": matched_stream["url"],
-                }
+
+            # Classify as recorded (was_live/not_live with past start) vs scheduled (upcoming/is_live)
+            stream_live_status = matched_stream.get("live_status", "")
+            stream_start_dt = matched_stream.get("start")
+            is_recorded = (
+                stream_live_status in ("was_live", "not_live")
+                or (stream_start_dt is not None and stream_start_dt < now_utc)
             )
+
+            entry_data = {
+                "date": _format_long_date(block_day),
+                "service_label": block["service_label"],
+                "youtube_title": matched_stream["title"],
+                "youtube_url": matched_stream["url"],
+            }
+
+            if is_recorded:
+                recorded_services.append(entry_data)
+            else:
+                matched_services.append(entry_data)
             continue
 
         local_start = block["start"].astimezone(tz)
@@ -878,8 +894,9 @@ def build_calendar_youtube_coverage_report(
         )
 
     if on_log:
-        on_log(f"Done — {len(matched_services)} matched, {len(missing_services)} missing")
+        on_log(f"Done — {len(matched_services)} scheduled, {len(recorded_services)} recorded, {len(missing_services)} missing")
 
+    total_considered = len(matched_services) + len(recorded_services) + len(missing_services)
     return {
         "created_at_utc": now_utc.isoformat(),
         "calendar_url": calendar_url_used,
@@ -887,13 +904,15 @@ def build_calendar_youtube_coverage_report(
         "coverage_days": coverage_days,
         "gap_minutes": gap_minutes,
         "total_service_blocks": len(blocks),
-        "service_blocks_total": len(matched_services) + len(missing_services),
+        "service_blocks_total": total_considered,
         "service_blocks_matched": len(matched_services),
+        "service_blocks_recorded": len(recorded_services),
         "service_blocks_missing": len(missing_services),
         "matched_services": matched_services,
+        "recorded_services": recorded_services,
         "missing_services": missing_services,
         # Backward-compatible aliases for existing consumers.
-        "divine_blocks_total": len(matched_services) + len(missing_services),
+        "divine_blocks_total": total_considered,
         "divine_blocks_matched": len(matched_services),
         "divine_blocks_missing": len(missing_services),
         "matched_divine": matched_services,
@@ -918,6 +937,7 @@ def write_calendar_youtube_coverage_markdown(root: Path, report: dict[str, Any])
         f"- Total Service Blocks: {report.get('total_service_blocks')}",
         f"- Service Blocks Considered: {report.get('service_blocks_total', report.get('divine_blocks_total'))}",
         f"- Already Scheduled on YouTube: {report.get('service_blocks_matched', report.get('divine_blocks_matched'))}",
+        f"- Already Recorded on YouTube: {report.get('service_blocks_recorded', 0)}",
         f"- Missing YouTube Schedule: {report.get('service_blocks_missing', report.get('divine_blocks_missing'))}",
         "",
     ]
@@ -929,6 +949,22 @@ def write_calendar_youtube_coverage_markdown(root: Path, report: dict[str, Any])
     if matched:
         markdown.extend(["## Already Scheduled", ""])
         for item in matched:
+            if not isinstance(item, dict):
+                continue
+            markdown.extend(
+                [
+                    f"- {item.get('date')}: {item.get('service_label')}",
+                    f"  - YouTube Title: {item.get('youtube_title')}",
+                    f"  - YouTube URL: {item.get('youtube_url')}",
+                ]
+            )
+        markdown.append("")
+
+    recorded_obj = report.get("recorded_services")
+    recorded = recorded_obj if isinstance(recorded_obj, list) else []
+    if recorded:
+        markdown.extend(["## Already Recorded", ""])
+        for item in recorded:
             if not isinstance(item, dict):
                 continue
             markdown.extend(
