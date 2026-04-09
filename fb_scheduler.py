@@ -446,6 +446,20 @@ def _service_label_from_names(names: list[str]) -> str:
     return " & ".join(ordered)
 
 
+def _label_ngram_similarity(a: str, b: str, n: int = 2) -> float:
+    """Character n-gram similarity (Dice coefficient) between two labels."""
+    a_lower = a.lower().strip()
+    b_lower = b.lower().strip()
+    if a_lower == b_lower:
+        return 1.0
+    if len(a_lower) < n or len(b_lower) < n:
+        return 0.0
+    ngrams_a = {a_lower[i:i + n] for i in range(len(a_lower) - n + 1)}
+    ngrams_b = {b_lower[i:i + n] for i in range(len(b_lower) - n + 1)}
+    overlap = len(ngrams_a & ngrams_b)
+    return (2.0 * overlap) / (len(ngrams_a) + len(ngrams_b))
+
+
 def _service_tokens(value: str) -> set[str]:
     lower = value.lower()
     tokens: set[str] = set()
@@ -836,7 +850,8 @@ def build_calendar_youtube_coverage_report(
         matched_stream: dict[str, Any] | None = None
         matched_stream_index: int | None = None
         best_time_diff: float | None = None
-        # Fallback candidate: same-day label match for streams without timestamps
+        # Fallback: score all same-day streams without timestamps by n-gram similarity
+        best_fallback_score: float = 0.0
         fallback_stream: dict[str, Any] | None = None
         fallback_stream_index: int | None = None
 
@@ -859,22 +874,17 @@ def build_calendar_youtube_coverage_report(
                 continue
 
             # Fallback: for streams without timestamps (was_live flat playlist),
-            # match by service label or tokens on the same day
-            if stream_start is None and fallback_stream is None:
-                stream_token_set = stream.get("service_tokens")
-                if not isinstance(stream_token_set, set):
-                    stream_token_set = set()
-                stream_label = str(stream.get("service_label") or "").lower()
-
-                if block_token_set and stream_token_set and block_token_set.intersection(stream_token_set):
-                    fallback_stream = stream
-                    fallback_stream_index = idx
-                elif block_label and stream_label and block_label == stream_label:
+            # score by n-gram similarity and pick the best match
+            if stream_start is None:
+                stream_label = str(stream.get("service_label") or "")
+                score = _label_ngram_similarity(block_label, stream_label)
+                if score > best_fallback_score:
+                    best_fallback_score = score
                     fallback_stream = stream
                     fallback_stream_index = idx
 
-        # Use time match if found, otherwise fall back to label match
-        if matched_stream is None and fallback_stream is not None:
+        # Use time match if found, otherwise fall back to best n-gram match
+        if matched_stream is None and fallback_stream is not None and best_fallback_score >= 0.3:
             matched_stream = fallback_stream
             matched_stream_index = fallback_stream_index
 
