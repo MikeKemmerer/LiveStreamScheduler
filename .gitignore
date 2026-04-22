@@ -14,3 +14,5 @@ nodal-ivy-*.json
 *.p12
 *.pem
 token.json
+
+.venv/
