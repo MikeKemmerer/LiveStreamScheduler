@@ -8,6 +8,10 @@ argument-hint: "Provide a YouTube channel URL, video URL, or number of recent vi
 
 Scan sermon videos from the church YouTube channel, identify compelling sub-60-second moments, download the clips, and generate metadata descriptions.
 
+## Context
+
+These are **Greek Orthodox** sermons (homilies) delivered during Divine Liturgy or Holy Week services at a parish in Seattle. The preacher often uses vivid personal stories, patristic references, and accessible analogies to connect theology to everyday life. The target audience for Shorts is both existing parishioners and newcomers discovering Orthodox Christianity. "Compelling" means: something a non-churchgoer scrolling YouTube would stop and watch.
+
 ## When to Use
 
 - Reviewing recent sermons to find Shorts-worthy moments
@@ -28,15 +32,17 @@ This skill requires `yt-dlp` installed and accessible in the terminal. See [envi
 
 ### Step 1 — List Recent Sermons
 
-Use `yt-dlp` to list recent videos from the channel:
+Use the **DRAFTS playlist** as the primary source for new sermons to review. The playlist URL is in [environment config](./references/env-config.md).
 
 ```bash
 yt-dlp --flat-playlist \
   --print "%(id)s | %(title)s | %(upload_date)s | %(duration)s" \
-  "CHANNEL_URL" 2>/dev/null | head -N
+  "DRAFTS_PLAYLIST_URL" 2>/dev/null
 ```
 
-Filter to sermon-length videos (typically 3–20 minutes). Skip full liturgy recordings (> 30 min).
+Before reviewing any video, check [reviewed-videos.md](./references/reviewed-videos.md) and skip any video IDs already listed there.
+
+Filter to sermon-length videos (typically 3–20 minutes). Skip full liturgy recordings (> 30 min), encyclicals, baptisms, and entries marked "SHORT" or "low volume".
 
 ### Step 2 — Download Transcripts
 
@@ -48,6 +54,8 @@ yt-dlp --write-auto-sub --sub-lang en --skip-download \
   "https://www.youtube.com/watch?v=VIDEO_ID"
 ```
 
+**Check the actual output filename** — yt-dlp sometimes writes `.en.vtt` or `.en.vtt3`. Use `ls /tmp/shorts_transcripts/VIDEO_ID*` to confirm.
+
 Extract timestamped clean text:
 
 ```bash
@@ -57,14 +65,22 @@ awk '/^[0-9][0-9]:[0-9][0-9]:[0-9][0-9]/{ts=substr($1,1,8)} /^[A-Za-z&]/{gsub(/<
 
 This produces ordered, timestamped, deduplicated lines for review.
 
+If a video has **no auto-generated captions** (yt-dlp reports "no subtitles"), skip it — do not attempt to review without a transcript.
+
+**Batch strategy**: When reviewing multiple videos, download all transcripts first, then review them one at a time. This avoids interleaving downloads and reviews, which wastes context.
+
 ### Step 3 — Identify Shorts-Worthy Moments
+
+**How to read a transcript**: Scan the timestamped output line by line. You are looking for self-contained "moments" — a passage where the speaker makes a complete point in under 60 seconds. To estimate duration, subtract the timestamp of the first line from the last line of the candidate segment. For example, if a segment starts at `00:03:15` and ends at `00:04:05`, that's ~50 seconds of content.
+
+**Expectation**: Most sermons will yield 0 or 1 worthy Short. Finding none is normal — do not force a Short from weak material. Finding 2 from one sermon is rare but acceptable.
 
 Read each transcript and look for segments that are:
 
 - **Self-contained**: Makes sense without surrounding context
-- **Under 60 seconds** of core content
+- **Under 60 seconds** of core content (estimate from timestamp gap)
 - **Compelling**: A vivid illustration, a powerful question, a memorable teaching moment
-- **Has a clear hook**: Starts with something that grabs attention
+- **Has a clear hook**: The first few seconds grab attention
 
 Good Shorts candidates:
 - Vivid analogies or personal stories (e.g., scraped knee → Holy Unction)
@@ -78,6 +94,33 @@ Poor candidates:
 - Segments that require prior context to understand
 - Long Scripture readings without commentary
 - Greetings, closings, or transitions
+
+#### Worked Example
+
+From a transcript of a Holy Unction sermon, these lines appeared:
+
+```
+00:00:50 you know when you're a little kid and you scrape your knee
+00:00:54 and you go running to your mom or your dad
+00:00:57 and they pick you up and they kiss it
+00:01:02 did the kiss heal the wound no
+00:01:05 but it did something deeper it told you that you were loved
+00:01:10 that someone cared about your pain
+00:01:15 that's what holy unction is
+00:01:18 it's God kissing your scraped knee
+00:01:22 it's the church saying we see your suffering
+00:01:28 and we bring the medicine of God's love
+00:01:35 not because it magically fixes everything
+00:01:40 but because you are not alone in your pain
+00:01:48 and that changes everything
+00:01:52 that is the mystery of this sacrament
+```
+
+**Why this works**: Self-contained analogy (scraped knee → sacrament), opens with a universal childhood image (hook), completes a full thought in ~62 seconds, emotionally resonant.
+
+**Timestamp calculation**: 00:00:50 to 00:01:52 = 62 seconds of core content. With 3-second padding: `--download-sections "*00:00:47-00:01:55"`.
+
+**Title**: "God Kissing Your Scraped Knee" — evocative, surprising, makes a viewer curious.
 
 ### Step 4 — Download Video Segments
 
@@ -93,8 +136,19 @@ yt-dlp --download-sections "*HH:MM:SS-HH:MM:SS" \
 
 Rules:
 - Always add **3 seconds of padding** before and after the target timestamps — auto-generated subtitle timestamps are often slightly off
+- The `*` before the timestamp range is required yt-dlp syntax — do not omit it
 - Use the Short title as the filename (no date prefix)
 - Save to the `Shorts/` folder in the repo root
+
+### Short Title Rules
+
+- 3–8 words, evocative and curiosity-provoking
+- Should make sense to someone who has never seen the sermon
+- Use the most striking image or phrase from the segment
+- Avoid generic titles ("A Beautiful Sermon Moment", "Orthodox Teaching")
+- Avoid clickbait — the title should honestly represent the content
+- No date prefix, no church name, no speaker name
+- Examples: "God Kissing Your Scraped Knee", "No Tomb So Sealed", "The Jesus Prayer Is Not Just for Monks"
 
 ### Step 5 — Generate Description File
 
@@ -131,6 +185,11 @@ After processing, present a summary table:
 
 Let the user review and request changes before considering the task complete.
 
+### Step 7 — Update Tracking
+
+After the user confirms results, append all reviewed video IDs to [reviewed-videos.md](./references/reviewed-videos.md) — both those with Shorts extracted and those reviewed without a worthy segment. This prevents re-processing on future runs.
+
 ## Reference
 
-- [Environment config](./references/env-config.md) — Channel URL, paths, and tool locations (not tracked in git)
+- [Environment config](./references/env-config.md) — Channel URL, DRAFTS playlist, paths, and tool locations (not tracked in git)
+- [Reviewed videos](./references/reviewed-videos.md) — Previously scanned video IDs (not tracked in git)

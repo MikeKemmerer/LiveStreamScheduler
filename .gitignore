@@ -18,5 +18,6 @@ token.json
 .venv/
 Shorts/
 
-# Private skill config (contains local paths and channel details)
+# Private skill config (contains local paths, channel details, and review history)
 .github/skills/short-maker/references/env-config.md
+.github/skills/short-maker/references/reviewed-videos.md
