@@ -188,7 +188,7 @@ Extract each clip using `yt-dlp` section download:
 
 ```bash
 yt-dlp --download-sections "*HH:MM:SS-HH:MM:SS" \
-  -f "bestvideo[height<=1080]+bestaudio/best" \
+  -f "bestvideo+bestaudio/best" \
   --merge-output-format mp4 --force-overwrites \
   -o "Shorts/Title Here.%(ext)s" \
   "https://www.youtube.com/watch?v=VIDEO_ID"
