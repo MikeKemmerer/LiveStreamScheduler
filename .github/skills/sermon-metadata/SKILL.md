@@ -102,6 +102,8 @@ If no sermon date is provided, ask.
 
 **STOP and ASK** if the user has not identified who is speaking. Do not proceed with title or description generation until you know the speaker. This is mandatory even if autopilot is enabled.
 
+The speaker may be identified in the DRAFT video title on YouTube (e.g., "DRAFT - April 10, 2026 Fr. Photios Homily"). When fetching the video title with `yt-dlp --print title`, check for speaker names before asking the user.
+
 Common speakers:
 - **Fr. Photios** — parish priest
 - **Fr. Spyridon** — parish priest

@@ -75,6 +75,8 @@ All Short titles and descriptions must be consistent with Orthodox Christian tea
 
 **STOP and ASK** if the user has not identified who is speaking in the video(s) being reviewed. Do not proceed with transcript review or Short extraction until you know the speaker for each video. This is mandatory even if autopilot is enabled.
 
+The speaker may be identified in the DRAFT video title (e.g., "DRAFT - April 10, 2026 Fr. Photios Homily"). When listing the DRAFTS playlist in Step 1, check each title for speaker names before asking the user.
+
 Common speakers:
 - **Fr. Photios** — parish priest
 - **Fr. Spyridon** — parish priest
