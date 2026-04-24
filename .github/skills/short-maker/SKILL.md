@@ -16,11 +16,46 @@ These are **Greek Orthodox** sermons (homilies) delivered during Divine Liturgy 
 
 All Short titles and descriptions must be consistent with Orthodox Christian teaching:
 
-**Terminology**: Use "Divine Liturgy" (not "church service" or "Mass"), "Theotokos" (not "Our Lady"), "Holy Communion" / "Eucharist" (not "Lord's Supper"), "Holy Unction" (not "anointing of the sick"), "Theosis" (not "sanctification"), "Pascha" (preferred; "Easter" acceptable in titles for accessibility), "Mystery" or "Sacrament" (both fine).
+**Terminology**:
+- "Divine Liturgy" (not "church service" or "Mass")
+- "Theotokos" / "the Virgin Mary" (not "Our Lady")
+- "Holy Communion" / "Eucharist" (not "Lord's Supper")
+- "Holy Unction" (not "anointing of the sick")
+- "Theosis" / "deification" (not "sanctification")
+- "Pascha" preferred; "Easter" acceptable in titles for accessibility
+- "Mystery" or "Sacrament" (both fine; "Mystery" is more traditional)
+- "Confession" / "Mystery of Repentance" (not a legalistic "going to confession")
+- "Priest" / "Father" (not "pastor", "reverend", "minister")
+- "Nave" for the worship space (not "sanctuary" — that's the altar area behind the iconostasis)
 
-**Theology**: Christ is fully God and fully man. The Cross is victory over death — not penal substitution (avoid "Jesus paid the price"). Salvation is healing and transformation (theosis), not a legal transaction. Sacraments are real encounters with grace — never describe them as "symbolic." The Saints are alive in Christ and intercede for us.
+**Theology**:
+- Christ is fully God and fully man — not merely a teacher or prophet
+- The Cross is victory over death — not penal substitution (avoid "Jesus paid the price")
+- Salvation is healing and transformation (theosis), not a legal transaction
+- Sacraments are real encounters with grace — never "symbolic"
+- The Saints are alive in Christ and intercede for us
+- The Holy Spirit proceeds from the Father (not "and the Son")
+- Original sin = inherited mortality, not inherited guilt — avoid "born sinful" or "total depravity"
+- Icons are windows to heaven — venerated, not worshipped
+- The Liturgy is timeless — we join heavenly worship already in progress; it is not a reenactment
 
-**Avoid**: "Accept Jesus as your personal Lord and Savior", "God has a plan for your life", describing Orthodox worship in Protestant or Catholic terms, individualistic framing (prefer "we" over "you").
+**Liturgical calendar** (sermons often reference these):
+- Holy Week services: Palm Sunday, Bridegroom Matins, Holy Unction (Wed), Mystical Supper (Thu), Twelve Gospels (Thu eve), Royal Hours (Fri morning), Unnailing (Fri afternoon), Lamentations (Fri eve), Holy Saturday Liturgy, Paschal service
+- Feast days: Nativity, Theophany (not "Epiphany"), Annunciation, Transfiguration, Dormition (not "Assumption")
+- Fasting is spiritual discipline, not punishment
+
+**Prayer and spiritual life**:
+- The Jesus Prayer: "Lord Jesus Christ, Son of God, have mercy on me, a sinner"
+- Nepsis (watchfulness), hesychasm (inner stillness), nous (spiritual intellect)
+- Church Fathers: use correct titles ("Saint John Chrysostom", "Saint Basil the Great", etc.) — do not reduce to "early church leaders"
+
+**Avoid**:
+- "Accept Jesus as your personal Lord and Savior" (altar-call language)
+- "God has a plan for your life" (prosperity/evangelical framing)
+- Describing Orthodox worship in Protestant or Catholic terms
+- "Worship leader", "praise band", "small group", "quiet time"
+- Calling the Church "a denomination" — Orthodoxy understands itself as the one, holy, catholic, and apostolic Church
+- Individualistic framing — prefer "we" over "you"
 
 **Tone**: Reverent but accessible — a newcomer should feel invited, not lectured.
 

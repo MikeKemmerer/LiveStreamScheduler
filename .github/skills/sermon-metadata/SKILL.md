@@ -25,6 +25,10 @@ All titles and descriptions must be consistent with Orthodox Christian teaching.
 - "Mystery" or "Sacrament" — both are acceptable; "Mystery" is more traditionally Orthodox
 - "Pascha" is preferred when discussing the theological event; "Easter" is acceptable in titles for accessibility
 - "Baptism" includes chrismation (they are one event in Orthodoxy)
+- "Confession" or "the Mystery of Repentance" — not "going to confession" as a legalistic obligation
+- "Priest" or "Father" — not "pastor", "reverend", or "minister"
+- "Parish" — not "congregation" (Protestant) or "parish community" (redundant)
+- "Nave" — the main worship space; not "sanctuary" (which refers to the altar area behind the iconostasis)
 
 **Christology and theology**:
 - Christ is fully God and fully man — never frame Him as merely a moral teacher or a prophet
@@ -32,6 +36,34 @@ All titles and descriptions must be consistent with Orthodox Christian teaching.
 - Salvation is understood as healing and transformation (theosis), not a legal transaction
 - The Church is the Body of Christ, not a building or an organization
 - The Saints are alive in Christ and intercede for us — they are not merely historical examples
+- The Holy Spirit proceeds from the Father (not "from the Father and the Son" — the Filioque is a Western addition)
+- Original sin in Orthodoxy is inherited mortality, not inherited guilt — avoid "born sinful" or "total depravity"
+
+**Ecclesiology and worship**:
+- Orthodox worship is liturgical and sacramental — it is not a performance or a "worship experience"
+- The Liturgy is timeless — when we worship, we join the heavenly worship already in progress; it is not a reenactment
+- Icons are windows to heaven, not decorations or idols — we venerate (honor) icons, we do not worship them
+- The iconostasis separates the nave from the altar — it reveals, not hides, the mystery
+- Incense, chanting, and prostrations are integral to worship, not optional extras
+
+**The liturgical calendar**:
+- The Orthodox calendar revolves around Pascha, not Christmas
+- Great Lent is a journey toward Pascha — not merely "giving things up"
+- Holy Week services each have specific names: Palm Sunday, Bridegroom Matins (Sunday–Wednesday evenings), Holy Unction (Wednesday), the Mystical Supper (Thursday), the Twelve Gospels (Thursday evening), Royal Hours (Friday morning), the Unnailing/Apokathelosis (Friday afternoon), Lamentations (Friday evening), the Divine Liturgy of Holy Saturday, the Paschal service (Saturday night/Sunday)
+- Feast days: use "the Nativity of Christ" or "Christmas", "Theophany" (not "Epiphany"), "the Annunciation", "Transfiguration", "Dormition of the Theotokos" (not "Assumption")
+- Fasting periods: Great Lent, Apostles' Fast, Dormition Fast, Nativity Fast — fasting is spiritual discipline, not punishment
+
+**Prayer and spiritual life**:
+- The Jesus Prayer ("Lord Jesus Christ, Son of God, have mercy on me, a sinner") is central to Orthodox spirituality
+- "Nous" (the spiritual intellect/heart) — not just "mind" or "heart" in the Western sense
+- "Nepsis" (watchfulness/vigilance) — a key ascetic concept
+- "Hesychasm" — the tradition of inner stillness and contemplative prayer
+- "Philokalia" — the collection of patristic texts on prayer and the spiritual life
+
+**The Church Fathers**:
+- When a sermon references a Church Father, use the correct title: "Saint John Chrysostom", "Saint Basil the Great", "Saint Gregory the Theologian", "Saint Athanasius", etc.
+- Do not reduce patristic references to generic "early church leaders" or "ancient theologians"
+- If unsure of the exact Father referenced, omit rather than guess
 
 **Avoid these non-Orthodox framings**:
 - "Accept Jesus as your personal Lord and Savior" (Protestant altar-call language)
@@ -39,6 +71,9 @@ All titles and descriptions must be consistent with Orthodox Christian teaching.
 - "Sola scriptura" thinking — Orthodox theology draws on Scripture, Tradition, and the Church Fathers
 - Describing sacraments as "symbolic" — in Orthodoxy, the Mysteries are real encounters with God's grace
 - Individualistic language — Orthodoxy emphasizes communal salvation ("we" over "you")
+- "Worship leader", "praise band", "small group" — these are Protestant organizational terms
+- "Homeschool your faith" or "quiet time" — Orthodox spiritual life is liturgical and communal, not privatized
+- Describing the Church as "a denomination" — the Orthodox Church understands itself as the one, holy, catholic, and apostolic Church
 
 **Tone**: Reverent but accessible. The goal is to invite, not to lecture. A newcomer should feel welcomed, not excluded by jargon — but the jargon that is used should be correct.
 
