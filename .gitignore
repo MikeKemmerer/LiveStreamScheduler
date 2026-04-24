@@ -16,3 +16,7 @@ nodal-ivy-*.json
 token.json
 
 .venv/
+Shorts/
+
+# Private skill config (contains local paths and channel details)
+.github/skills/short-maker/references/env-config.md

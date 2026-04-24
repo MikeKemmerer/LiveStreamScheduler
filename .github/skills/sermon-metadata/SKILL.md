@@ -20,9 +20,33 @@ The user may provide any of:
 
 1. **Transcript pasted directly into chat** — use as-is
 2. **File path** to a transcript file — read it
-3. **YouTube video URL** — fetch the page, extract available transcript/description context
+3. **YouTube video URL** — use `yt-dlp` to download the auto-generated subtitle file, then extract text from it
 
 If no sermon date is provided, ask.
+
+## Fetching a YouTube Transcript with yt-dlp
+
+When given a YouTube URL, run the following in WSL to download the subtitle/transcript:
+
+```bash
+yt-dlp --write-auto-sub --sub-lang en --skip-download \
+  --output "/tmp/sermon_transcript" \
+  "https://www.youtube.com/watch?v=VIDEO_ID" \
+  > /tmp/ytdlp_out.txt 2>&1
+```
+
+This writes a `.en.vtt` file to `/tmp`. Extract clean text with:
+
+```bash
+grep -v "^WEBVTT\|^NOTE\|^[0-9]\|^$\|-->" \
+  /tmp/sermon_transcript.en.vtt \
+  | sort -u
+```
+
+The deduplicated lines give a readable transcript. Use it to identify theme, key points, and scripture references.
+
+- Works on unlisted videos; does not require sign-in for auto-generated captions
+- Sermon date is typically in the YouTube video title — use it if available
 
 ## Procedure
 
