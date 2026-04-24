@@ -36,8 +36,16 @@ These files are gitignored and must never be committed.
 
 ### 3. Dependencies
 
+Requires Python 3.9+ (for `zoneinfo`). Install Python packages:
+
 ```bash
-pip install google-auth google-auth-oauthlib google-api-python-client python-dateutil
+pip install -r requirements.txt
+```
+
+You also need **yt-dlp** installed as a CLI tool (called via subprocess, not imported):
+
+```bash
+pip install yt-dlp
 ```
 
 ## Usage
