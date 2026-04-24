@@ -12,6 +12,18 @@ Scan sermon videos from the church YouTube channel, identify compelling sub-60-s
 
 These are **Greek Orthodox** sermons (homilies) delivered during Divine Liturgy or Holy Week services at a parish in Seattle. The preacher often uses vivid personal stories, patristic references, and accessible analogies to connect theology to everyday life. The target audience for Shorts is both existing parishioners and newcomers discovering Orthodox Christianity. "Compelling" means: something a non-churchgoer scrolling YouTube would stop and watch.
 
+### Orthodox Language & Theology Guidelines
+
+All Short titles and descriptions must be consistent with Orthodox Christian teaching:
+
+**Terminology**: Use "Divine Liturgy" (not "church service" or "Mass"), "Theotokos" (not "Our Lady"), "Holy Communion" / "Eucharist" (not "Lord's Supper"), "Holy Unction" (not "anointing of the sick"), "Theosis" (not "sanctification"), "Pascha" (preferred; "Easter" acceptable in titles for accessibility), "Mystery" or "Sacrament" (both fine).
+
+**Theology**: Christ is fully God and fully man. The Cross is victory over death — not penal substitution (avoid "Jesus paid the price"). Salvation is healing and transformation (theosis), not a legal transaction. Sacraments are real encounters with grace — never describe them as "symbolic." The Saints are alive in Christ and intercede for us.
+
+**Avoid**: "Accept Jesus as your personal Lord and Savior", "God has a plan for your life", describing Orthodox worship in Protestant or Catholic terms, individualistic framing (prefer "we" over "you").
+
+**Tone**: Reverent but accessible — a newcomer should feel invited, not lectured.
+
 ## When to Use
 
 - Reviewing recent sermons to find Shorts-worthy moments
