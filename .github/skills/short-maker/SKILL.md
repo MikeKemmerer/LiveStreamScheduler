@@ -36,6 +36,17 @@ All Short titles and descriptions must be consistent with Orthodox Christian tea
 2. **Specific YouTube video URL** — scan one sermon for shorts moments
 3. **Timestamp range + video URL** — extract a known segment directly
 
+### Required: Speaker Identification
+
+**STOP and ASK** if the user has not identified who is speaking in the video(s) being reviewed. Do not proceed with transcript review or Short extraction until you know the speaker for each video. This is mandatory even if autopilot is enabled.
+
+Common speakers:
+- **Fr. Photios** — parish priest
+- **Fr. Spyridon** — parish priest
+- **Guest priest or speaker** — ask for their name and title
+
+When reviewing a batch, confirm the speaker for the batch (e.g., "these are all Fr. Photios") or ask per-video if they vary.
+
 ## Environment
 
 This skill requires `yt-dlp` installed and accessible in the terminal. See [environment config](./references/env-config.md) for paths and channel details.

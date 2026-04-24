@@ -63,6 +63,17 @@ The user may provide any of:
 
 If no sermon date is provided, ask.
 
+### Required: Speaker Identification
+
+**STOP and ASK** if the user has not identified who is speaking. Do not proceed with title or description generation until you know the speaker. This is mandatory even if autopilot is enabled.
+
+Common speakers:
+- **Fr. Photios** — parish priest
+- **Fr. Spyridon** — parish priest
+- **Guest priest or speaker** — ask for their name and title
+
+The speaker's name does not appear in the title or description (per the formatting rules), but it is needed to correctly attribute the homily's style and context internally and to avoid misattribution.
+
 ## Fetching a YouTube Transcript with yt-dlp
 
 When given a YouTube URL, first extract the video title and upload date:
