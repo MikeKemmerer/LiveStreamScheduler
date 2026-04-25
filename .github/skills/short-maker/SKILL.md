@@ -224,6 +224,8 @@ Short Title
 Scripture: [references, only if explicitly quoted in the clip]
 
 Saint Demetrios Greek Orthodox Church — Seattle, WA
+
+Source: [Original YouTube video title]
 ```
 
 Rules:
@@ -233,7 +235,8 @@ Rules:
 - Only include Scripture references actually spoken in the clip
 - Omit the Scripture line entirely if none are quoted
 - Do NOT include timestamps, links, or promotional content
-- Parish line is always last, preceded by a blank line
+- Parish line is preceded by a blank line
+- Source line is always last — the original video title exactly as it appears on YouTube (used for linking in YouTube Studio)
 
 ### Step 6 — Present Results
 
