@@ -195,10 +195,38 @@ yt-dlp --download-sections "*HH:MM:SS-HH:MM:SS" \
 ```
 
 Rules:
-- Always add **3 seconds of padding** before and after the target timestamps — auto-generated subtitle timestamps are often slightly off
+- Always add **7 seconds of padding** before and after the target timestamps — auto-generated subtitle timestamps are often slightly off
 - The `*` before the timestamp range is required yt-dlp syntax — do not omit it
 - Use the Short title as the filename (no date prefix)
 - Save to the `Shorts/` folder in the repo root
+
+### Step 4b — Portrait Crop
+
+After downloading each clip, run the face-tracking portrait crop script to produce a 9:16 vertical version:
+
+```bash
+source /home/kemmie/tools/FaceFollow/venv/bin/activate && \
+  python /home/kemmie/tools/FaceFollow/face_follow.py \
+  "Shorts/Title Here.mp4" \
+  --output "Shorts/Title Here_portrait.mp4" \
+  --smoothing 0.15
+```
+
+Rules:
+- The landscape original stays as-is — the portrait version is a separate file with `_portrait` suffix
+- Default `--smoothing 0.15` works well for stationary preaching. Increase to `0.3`–`0.4` if the speaker moves around significantly
+- If detection rate is very low (<10%), warn the user — the clip may be a wide shot where cropping won't look good
+- The portrait file uses OpenCV's `mp4v` codec (video only). After cropping, mux audio from the original:
+
+```bash
+ffmpeg -i "Shorts/Title Here_portrait.mp4" \
+  -i "Shorts/Title Here.mp4" \
+  -c:v copy -c:a aac -map 0:v:0 -map 1:a:0 \
+  -y "Shorts/Title Here_portrait_final.mp4" && \
+  mv "Shorts/Title Here_portrait_final.mp4" "Shorts/Title Here_portrait.mp4"
+```
+
+- If ffmpeg is not available or the original has no audio track, skip the audio mux step
 
 ### Short Title Rules
 
@@ -242,9 +270,9 @@ Rules:
 
 After processing, present a summary table:
 
-| Short Title | Source Sermon | Segment | Duration |
-|-------------|-------------|---------|----------|
-| Title | Sermon name | MM:SS–MM:SS | ~XXs |
+| Short Title | Source Sermon | Segment | Duration | Portrait |
+|-------------|-------------|---------|----------|----------|
+| Title | Sermon name | MM:SS–MM:SS | ~XXs | ✅ / ❌ |
 
 Let the user review and request changes before considering the task complete.
 
