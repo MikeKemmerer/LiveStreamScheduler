@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -8,9 +10,44 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
+def _missing_yt_dlp_message() -> str:
+    return (
+        "yt-dlp was not found. Install it with 'pip install yt-dlp' and ensure your Python Scripts "
+        "directory is on PATH, or set YT_DLP_BIN to the full yt-dlp executable path."
+    )
+
+
+def _resolve_yt_dlp_cmd() -> list[str]:
+    override = os.environ.get("YT_DLP_BIN", "").strip()
+    if override:
+        resolved_override = shutil.which(override)
+        if resolved_override:
+            return [resolved_override]
+
+        override_path = Path(override)
+        if override_path.exists():
+            return [str(override_path)]
+
+        raise RuntimeError(f"YT_DLP_BIN is set but could not be resolved: {override}")
+
+    for candidate in ("yt-dlp", "yt-dlp.exe"):
+        resolved = shutil.which(candidate)
+        if resolved:
+            return [resolved]
+
+    try:
+        import importlib.util
+
+        if importlib.util.find_spec("yt_dlp") is not None:
+            return [sys.executable, "-m", "yt_dlp"]
+    except Exception:
+        pass
+
+    raise RuntimeError(_missing_yt_dlp_message())
+
+
 def run_yt_dlp_json(url: str, flat_playlist: bool = False) -> dict:
-    cmd = [
-        "yt-dlp",
+    cmd = _resolve_yt_dlp_cmd() + [
         "--dump-single-json",
         "--no-warnings",
         "--ignore-no-formats-error",
@@ -19,7 +56,11 @@ def run_yt_dlp_json(url: str, flat_playlist: bool = False) -> dict:
         cmd.append("--flat-playlist")
     cmd.append(url)
 
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+    except FileNotFoundError as exc:
+        raise RuntimeError(_missing_yt_dlp_message()) from exc
+
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "yt-dlp failed")
 
@@ -31,8 +72,7 @@ def run_yt_dlp_json(url: str, flat_playlist: bool = False) -> dict:
 
 def run_yt_dlp_json_streaming(url: str, flat_playlist: bool = False, on_line=None) -> dict:
     """Like run_yt_dlp_json but yields stderr lines via *on_line* callback in real time."""
-    cmd = [
-        "yt-dlp",
+    cmd = _resolve_yt_dlp_cmd() + [
         "--dump-single-json",
         "--ignore-no-formats-error",
         "--newline",
@@ -44,7 +84,10 @@ def run_yt_dlp_json_streaming(url: str, flat_playlist: bool = False, on_line=Non
     if on_line:
         on_line(f"$ {' '.join(cmd)}")
 
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    except FileNotFoundError as exc:
+        raise RuntimeError(_missing_yt_dlp_message()) from exc
     proc_stdout = proc.stdout
     proc_stderr = proc.stderr
     assert proc_stdout is not None
