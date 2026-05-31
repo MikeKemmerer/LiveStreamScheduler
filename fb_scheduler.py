@@ -21,6 +21,16 @@ from youtube_to_facebook_draft import (
     run_yt_dlp_json_streaming,
 )
 
+try:
+    import goarch_calendar
+except ImportError:  # pragma: no cover - optional enrichment
+    goarch_calendar = None
+
+try:
+    import synaxaria_client
+except ImportError:  # pragma: no cover - optional enrichment
+    synaxaria_client = None
+
 
 DEFAULT_CALENDAR_URL = "http://your-calendar-server:8000/calendar_cache.json"
 DEFAULT_LOCAL_TIMEZONE = "America/Los_Angeles"
@@ -800,6 +810,57 @@ def _draft_description(block: dict[str, Any], tz, title_line: str) -> str:
     return "\n".join(lines)
 
 
+def _goarch_liturgy_data(day: date, synaxaria_api_key: str | None = None) -> dict[str, Any]:
+    """Return GOARCH liturgical info for ``day`` as ``{"block", "reference"}``.
+
+    ``block`` is the description text built **only** from the GOARCH ICS feed
+    (readings + the feed's commemoration list). Project Synaxaria is NOT used to
+    populate the description: its ``date=MM-DD`` endpoint is year-agnostic, so it
+    returns moveable commemorations (e.g. "Fathers of the 1st Council", the
+    Sundays of Matthew) computed from a different year's Pascha and mislabels the
+    current year. The GOARCH ICS feed has real dated events and is year-correct.
+
+    ``reference`` is a list of GOARCH-source Synaxaria entries with biographies
+    (``name``/``source``/``life_text``/``url``) surfaced only as a manual,
+    clearly-labeled copy/paste reference card — never auto-inserted.
+
+    Liturgical data comes from the GOARCH public Google Calendar ICS feed via
+    ``goarch_calendar`` (feed discovery credit: dvogeldev/ortho-cal,
+    https://github.com/dvogeldev/ortho-cal). Biographies come from the Project
+    Synaxaria API via ``synaxaria_client``. Returns empty values on any failure
+    so callers degrade gracefully.
+    """
+    empty: dict[str, Any] = {"block": "", "reference": []}
+    if goarch_calendar is None:
+        return empty
+    try:
+        liturgical_day = goarch_calendar.get_day(day)
+        if liturgical_day is None:
+            return empty
+
+        # Description commemorations come ONLY from the year-correct ICS feed.
+        block = goarch_calendar.format_liturgy_block(liturgical_day)
+
+        # Synaxaria is used solely for the manual reference card (biographies).
+        reference: list[dict[str, Any]] = []
+        if synaxaria_client is not None:
+            try:
+                records = synaxaria_client.fetch_daily(
+                    day.month, day.day, api_key=synaxaria_api_key
+                )
+            except Exception:
+                records = []
+            if records:
+                try:
+                    reference = synaxaria_client.reference_entries_from_records(records)
+                except Exception:
+                    reference = []
+
+        return {"block": block, "reference": reference}
+    except Exception:
+        return empty
+
+
 def _service_block_id(service_label: str, start_utc: datetime) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", service_label.lower()).strip("-") or "service"
     start_part = start_utc.strftime("%Y%m%dT%H%M%SZ")
@@ -817,6 +878,9 @@ def build_calendar_youtube_coverage_report(
 ) -> dict[str, Any]:
     tz = _local_tz(config)
     now_utc = datetime.now(timezone.utc)
+
+    synaxaria_cfg = _as_dict(config.get("synaxaria"))
+    synaxaria_api_key = str(synaxaria_cfg.get("api_key") or "").strip() or None
 
     if on_log:
         on_log(f"Fetching calendar from {calendar_url}")
@@ -922,6 +986,10 @@ def build_calendar_youtube_coverage_report(
         announcement_option = _find_announcement_for_day(events, title_day)
         feast_options = _find_feast_day_entries_for_day(events, title_day)
         draft_title = _draft_title(block, events)
+        liturgy = _goarch_liturgy_data(title_day, synaxaria_api_key)
+        liturgy_block = liturgy["block"]
+        liturgy_reference = liturgy["reference"]
+        draft_description = f"{title_base}\n\n{liturgy_block}" if liturgy_block else title_base
         missing_services.append(
             {
                 "service_block_id": _service_block_id(service_label, block["start"].astimezone(timezone.utc)),
@@ -937,7 +1005,8 @@ def build_calendar_youtube_coverage_report(
                 "title_base": title_base,
                 "title_announcement_option": announcement_option,
                 "title_feast_options": feast_options,
-                "description": title_base,
+                "description": draft_description,
+                "liturgy_reference": liturgy_reference,
             }
         )
 

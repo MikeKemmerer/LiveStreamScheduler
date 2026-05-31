@@ -17,6 +17,7 @@ token.json
 
 .venv/
 Shorts/
+Sermons/
 
 # Private skill config (contains local paths, channel details, and review history)
 .github/skills/short-maker/references/env-config.md
