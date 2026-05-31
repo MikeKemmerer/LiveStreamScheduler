@@ -11,6 +11,9 @@
     "coverage_days": 10,
     "gap_minutes": 15
   },
+  "synaxaria": {
+    "api_key": "YOUR_SYNAXARIA_API_KEY"
+  },
   "defaults": {
     "calendar_youtube_coverage": false,
     "fb_lead_minutes": 15,

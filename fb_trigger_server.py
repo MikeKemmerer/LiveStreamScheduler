@@ -130,6 +130,11 @@ def _render_coverage_html(
         '<h3>Pending Queue</h3>',
     ]
 
+    # Right-column "Saint Descriptions" cards, toggled on per-service from the
+    # left column. Collected during the draft loop and injected into the aside
+    # above the Scheduled/Reference/Activity tabs.
+    reference_panel_cards: list[str] = []
+
     if not missing:
         out.append("<p>All service blocks in the current window already have a YouTube stream.</p>")
 
@@ -164,9 +169,16 @@ def _render_coverage_html(
         service_attr = html.escape(str(item.get("service_label") or "Service"), quote=True)
         title_value = html.escape(title_base_raw)
         title_raw = title_base_raw
-        desc_raw = title_base_raw
+        desc_full_raw = str(item.get("description") or "").strip()
+        if desc_full_raw.startswith(title_base_raw):
+            desc_rest_raw = desc_full_raw[len(title_base_raw):]
+        elif desc_full_raw:
+            desc_rest_raw = "\n\n" + desc_full_raw
+        else:
+            desc_rest_raw = ""
+        desc_raw = title_base_raw + desc_rest_raw
         desc_value = html.escape(desc_raw)
-        desc_rest_attr = html.escape(json.dumps(""), quote=True)
+        desc_rest_attr = html.escape(json.dumps(desc_rest_raw), quote=True)
         block_id = html.escape(str(item.get("service_block_id") or f"draft-{idx}"), quote=True)
 
         announcement_option = str(item.get("title_announcement_option") or "").strip()
@@ -202,10 +214,64 @@ def _render_coverage_html(
         else:
             option_html = '<p class="char-count">No Announcement/Feast options available for this draft.</p>'
 
+        # GOARCH saint biographies for this day. Hidden by default; toggled on
+        # from the draft card into a card in the RIGHT column (above the
+        # Scheduled/Reference/Activity tabs). GOARCH-source only.
+        reference_obj = item.get("liturgy_reference")
+        reference_entries = reference_obj if isinstance(reference_obj, list) else []
+        ref_card_id = f"cov-ref-card-{idx}"
+        ref_entry_html: list[str] = []
+        ref_entry_index = 0
+        for entry in reference_entries:
+            if not isinstance(entry, dict):
+                continue
+            if str(entry.get("source") or "").strip().lower() != "goarch":
+                continue
+            entry_name = str(entry.get("name") or "").strip()
+            entry_text = str(entry.get("life_text") or "").strip()
+            if not entry_text:
+                continue
+            entry_url = str(entry.get("url") or "").strip()
+            ref_txt_id = f"cov-ref-text-{idx}-{ref_entry_index}"
+            ref_status_id = f"cov-ref-status-{idx}-{ref_entry_index}"
+            source_html = '<span class="ref-source">GOARCH</span>'
+            if entry_url:
+                source_html += (
+                    f' <a class="ref-link" href="{html.escape(entry_url, quote=True)}"'
+                    ' target="reference-pane" rel="noopener"'
+                    " onclick=\"activateRightTab('reference');\">source</a>"
+                )
+            ref_entry_html.append(
+                f'<div class="ref-entry">'
+                f'<div class="copy-row"><p><strong>{html.escape(entry_name)}</strong> {source_html}</p>'
+                f'<button type="button" onclick="copyFromId(\'{ref_txt_id}\', \'{ref_status_id}\')">Copy</button>'
+                f'<span id="{ref_status_id}" class="copy-status" aria-live="polite"></span></div>'
+                f'<textarea id="{ref_txt_id}" class="ref-text" rows="4" readonly>{html.escape(entry_text)}</textarea>'
+                f'</div>'
+            )
+            ref_entry_index += 1
+
+        has_reference = bool(ref_entry_html)
+        if has_reference:
+            reference_panel_cards.append(
+                f'<div class="card ref-card is-hidden" id="{ref_card_id}">'
+                f'<div class="copy-row"><p><strong>Saint Descriptions — {date_txt}</strong> '
+                f'<span class="char-count">GOARCH · {len(ref_entry_html)} biographies · reference only — verify against the calendar (moveable feasts may be off-year)</span></p>'
+                f'<button class="ghost-btn" type="button" onclick="toggleRefCard(\'{ref_card_id}\')">Hide</button></div>'
+                f'<div class="ref-body">{"".join(ref_entry_html)}</div>'
+                f'</div>'
+            )
+
+        ref_toggle_btn = (
+            f'<button class="ghost-btn" type="button" onclick="toggleRefCard(\'{ref_card_id}\', this)">Saint Descriptions</button>'
+            if has_reference
+            else ""
+        )
+
         out.extend(
             [
           f'<div class="card draft-card stream-item" data-stream-status="unscheduled" data-service-block-id="{block_id}" data-service-label="{service_attr}" data-start-local="{start_local_attr}" data-title-id="{title_id}">',
-          f'<div class="copy-row"><p><strong>Service {idx}</strong> <span class="status-chip status-pending">Unscheduled</span></p><button class="ghost-btn" type="button" onclick="markDraftScheduled(this)">Mark Scheduled</button><button class="ghost-btn toggle-draft-btn" data-target-body="{body_id}" type="button">Collapse</button></div>',
+          f'<div class="copy-row"><p><strong>Service {idx}</strong> <span class="status-chip status-pending">Unscheduled</span></p><button class="ghost-btn" type="button" onclick="markDraftScheduled(this)">Mark Scheduled</button>{ref_toggle_btn}<button class="ghost-btn toggle-draft-btn" data-target-body="{body_id}" type="button">Collapse</button></div>',
                 f'<div id="{body_id}" class="draft-body">',
                 f"<p><strong>Date:</strong> {date_txt}</p>",
                 f"<p><strong>Service:</strong> {service_txt}</p>",
@@ -327,6 +393,7 @@ def _render_coverage_html(
         [
             '</section>',
             '<aside class="mission-right" id="right-panel">',
+            "".join(reference_panel_cards),
             '<div class="tabs" role="tablist" aria-label="Mission right panel tabs">',
           '<button type="button" class="tab-btn is-active" data-tab="scheduled" role="tab" aria-selected="true" onclick="activateRightTab(\'scheduled\')">Scheduled</button>',
           '<button type="button" class="tab-btn" data-tab="reference" role="tab" aria-selected="false" onclick="activateRightTab(\'reference\')">Reference</button>',
@@ -391,6 +458,7 @@ class Handler(BaseHTTPRequestHandler):
   <head>
     <meta charset="utf-8" />
     <title>Live Scheduler</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23c0392b'/%3E%3Cpath d='M12 9v14l12-7z' fill='%23fff'/%3E%3Cpath d='M5.5 8a14 14 0 000 16' stroke='%23fff' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M26.5 8a14 14 0 010 16' stroke='%23fff' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E" />
     <style>
       :root {{
         --bg: #f5f3ef;
@@ -693,6 +761,7 @@ class Handler(BaseHTTPRequestHandler):
   <head>
     <meta charset=\"utf-8\" />
     <title>Run Complete</title>
+    <link rel=\"icon\" type=\"image/svg+xml\" href=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23c0392b'/%3E%3Cpath d='M12 9v14l12-7z' fill='%23fff'/%3E%3Cpath d='M5.5 8a14 14 0 000 16' stroke='%23fff' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M26.5 8a14 14 0 010 16' stroke='%23fff' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E\" />
     <style>
       :root {{
         --bg: #f5f3ef;
@@ -741,6 +810,13 @@ class Handler(BaseHTTPRequestHandler):
       .opt-wrap {{ border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin: 6px 0 10px; }}
       .opt-item {{ display: block; margin: 4px 0; }}
       .is-hidden {{ display: none; }}
+      .ref-card {{ border-left: 3px solid var(--accent, #6b7cff); }}
+      .ref-body {{ margin-top: 8px; display: flex; flex-direction: column; gap: 12px; }}
+      .ref-entry {{ border-top: 1px solid var(--border); padding-top: 8px; }}
+      .ref-entry:first-child {{ border-top: none; padding-top: 0; }}
+      .ref-source {{ font-size: 0.8rem; color: var(--muted, #888); text-transform: uppercase; letter-spacing: 0.04em; }}
+      .ref-link {{ font-size: 0.8rem; margin-left: 6px; }}
+      .ref-text {{ width: 100%; font-family: monospace; font-size: 0.85rem; }}
       .ghost-btn {{ background: transparent; border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; color: var(--text); }}
       .theme-btn {{ border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 7px; padding: 8px 12px; cursor: pointer; }}
       .mission-shell {{ margin-top: 12px; }}
@@ -788,6 +864,20 @@ class Handler(BaseHTTPRequestHandler):
         if (!body || !btn) return;
         const hidden = body.classList.toggle('is-hidden');
         btn.textContent = hidden ? 'Expand' : 'Collapse';
+      }}
+
+      function toggleRefCard(cardId, btn) {{
+        const card = document.getElementById(cardId);
+        if (!card) return;
+        const hidden = card.classList.toggle('is-hidden');
+        // Keep the matching left-column trigger button's label in sync.
+        const trigger = document.querySelector('button[onclick*="' + cardId + '"][onclick*="this"]');
+        if (trigger) {{
+          trigger.textContent = hidden ? 'Saint Descriptions' : 'Hide Descriptions';
+        }}
+        if (!hidden) {{
+          card.scrollIntoView({{ behavior: 'smooth', block: 'nearest' }});
+        }}
       }}
 
       function initializeCollapseButtons() {{
@@ -1031,7 +1121,9 @@ class Handler(BaseHTTPRequestHandler):
 
         // Keep description first line in sync with title.
         if (targetDescId && descField) {{
-            descField.value = title;
+            let rest = '';
+            try {{ rest = JSON.parse(descField.dataset.restJson || '""'); }} catch (e) {{ rest = ''; }}
+            descField.value = title + rest;
             if (targetDescCountId) {{
               const descCount = document.getElementById(targetDescCountId);
               if (descCount) descCount.textContent = descField.value.length + '/5000';
@@ -1136,7 +1228,7 @@ class Handler(BaseHTTPRequestHandler):
             page = f"""
 <!doctype html>
 <html>
-  <head><meta charset=\"utf-8\" /><title>Run Failed</title></head>
+  <head><meta charset=\"utf-8\" /><title>Run Failed</title><link rel=\"icon\" type=\"image/svg+xml\" href=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23c0392b'/%3E%3Cpath d='M12 9v14l12-7z' fill='%23fff'/%3E%3Cpath d='M5.5 8a14 14 0 000 16' stroke='%23fff' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M26.5 8a14 14 0 010 16' stroke='%23fff' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E\" /></head>
   <body>
     <h1>Run Failed</h1>
     <p><a href=\"/\">Back</a></p>
