@@ -192,6 +192,34 @@ def _extract_field(event_block: str, key: str) -> str | None:
     return _unescape(match.group(1))
 
 
+def _split_saints(raw: str) -> list[str]:
+    """Split a GOARCH "Saints and Feasts" value into individual commemorations.
+
+    Entries are separated by "; ", but a single commemoration can itself contain
+    semicolons that GOARCH does not escape, e.g.::
+
+        The Holy Martyrs of Estonia: the Priests Basil, ... and Nicholas; the
+        Deacons Vasili and Peter; the Presytera Martha; and John, ... and Anna.
+
+    A genuine new commemoration always begins with a capital letter or a digit
+    (a proper name, "The", "Holy", "2nd Sunday...", etc.), whereas these internal
+    continuation fragments begin lowercase ("the", "and"). So we split on
+    semicolons and re-join any fragment that starts lowercase onto the previous
+    entry, keeping multi-part commemorations intact.
+    """
+
+    entries: list[str] = []
+    for fragment in raw.split(";"):
+        part = fragment.strip()
+        if not part:
+            continue
+        if entries and part[:1].islower():
+            entries[-1] = f"{entries[-1]}; {part}"
+        else:
+            entries.append(part)
+    return entries
+
+
 def parse_description(text: str) -> tuple[list[str], str, list[Reading]]:
     """Parse a GOARCH event DESCRIPTION into saints, fast, and readings.
 
@@ -228,7 +256,7 @@ def parse_description(text: str) -> tuple[list[str], str, list[Reading]]:
             continue  # header line
         saints_match = saints_re.match(line)
         if saints_match:
-            saints = [s.strip() for s in saints_match.group(1).split(";") if s.strip()]
+            saints = _split_saints(saints_match.group(1))
             continue
         # First standalone non-label line is the fasting note.
         if not fast:
