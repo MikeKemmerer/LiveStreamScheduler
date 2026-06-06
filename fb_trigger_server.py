@@ -17,6 +17,11 @@ from fb_scheduler import (
     read_config,
 )
 
+try:
+    import synaxaria_client
+except ImportError:  # pragma: no cover - optional dependency
+    synaxaria_client = None  # type: ignore[assignment]
+
 
 ROOT = Path(__file__).resolve().parent
 LOGGER = logging.getLogger(__name__)
@@ -94,6 +99,7 @@ def _to_int(value: object, default: int) -> int:
 
 def _render_coverage_html(
   report: dict[str, object],
+  config_name: str = "fb_config.local.json",
 ) -> str:
     missing_obj = report.get("missing_services")
     if not isinstance(missing_obj, list):
@@ -222,6 +228,7 @@ def _render_coverage_html(
         ref_card_id = f"cov-ref-card-{idx}"
         ref_entry_html: list[str] = []
         ref_entry_index = 0
+        matched_norms: set[str] = set()
         for entry in reference_entries:
             if not isinstance(entry, dict):
                 continue
@@ -231,6 +238,8 @@ def _render_coverage_html(
             entry_text = str(entry.get("life_text") or "").strip()
             if not entry_text:
                 continue
+            if synaxaria_client is not None and entry_name:
+                matched_norms.add(synaxaria_client._normalize(entry_name))
             entry_url = str(entry.get("url") or "").strip()
             ref_txt_id = f"cov-ref-text-{idx}-{ref_entry_index}"
             ref_status_id = f"cov-ref-status-{idx}-{ref_entry_index}"
@@ -251,12 +260,38 @@ def _render_coverage_html(
             )
             ref_entry_index += 1
 
+        # Feast/saint commemorations from the GOARCH feed that don't already have
+        # a biography above. Clicking "Saint Descriptions" searches Synaxaria for
+        # each of these (exact-name matches only) and appends them to the card.
+        feed_obj = item.get("liturgy_feed_saints")
+        feed_saints = feed_obj if isinstance(feed_obj, list) else []
+        search_terms: list[str] = []
+        if synaxaria_client is not None:
+            for raw_name in feed_saints:
+                name = str(raw_name or "").strip()
+                if not name:
+                    continue
+                if synaxaria_client._normalize(name) in matched_norms:
+                    continue
+                search_terms.append(name)
+
         has_reference = bool(ref_entry_html)
-        if has_reference:
+        has_search = bool(search_terms)
+        if has_reference or has_search:
+            if has_reference:
+                count_note = (
+                    f'GOARCH · {len(ref_entry_html)} biographies · reference only — '
+                    'verify against the calendar (moveable feasts may be off-year)'
+                )
+            else:
+                count_note = 'Click to search Synaxaria for these commemorations — reference only'
+            search_attr = html.escape(json.dumps(search_terms), quote=True)
+            config_attr = html.escape(config_name, quote=True)
             reference_panel_cards.append(
-                f'<div class="card ref-card is-hidden" id="{ref_card_id}">'
+                f'<div class="card ref-card is-hidden" id="{ref_card_id}"'
+                f' data-search-terms="{search_attr}" data-config="{config_attr}">'
                 f'<div class="copy-row"><p><strong>Saint Descriptions — {date_txt}</strong> '
-                f'<span class="char-count">GOARCH · {len(ref_entry_html)} biographies · reference only — verify against the calendar (moveable feasts may be off-year)</span></p>'
+                f'<span class="char-count">{count_note}</span></p>'
                 f'<button class="ghost-btn" type="button" onclick="toggleRefCard(\'{ref_card_id}\')">Hide</button></div>'
                 f'<div class="ref-body">{"".join(ref_entry_html)}</div>'
                 f'</div>'
@@ -264,7 +299,7 @@ def _render_coverage_html(
 
         ref_toggle_btn = (
             f'<button class="ghost-btn" type="button" onclick="toggleRefCard(\'{ref_card_id}\', this)">Saint Descriptions</button>'
-            if has_reference
+            if (has_reference or has_search)
             else ""
         )
 
@@ -438,11 +473,57 @@ class Handler(BaseHTTPRequestHandler):
                 return
             raise
 
+    def _send_json(self, status: int, payload: dict) -> None:
+        body = json.dumps(payload).encode("utf-8")
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        except OSError as exc:
+            if _is_client_disconnect_error(exc):
+                LOGGER.warning("Client disconnected during JSON response")
+                return
+            raise
+
+    def _handle_saint_search(self, parsed) -> None:
+        """GET /saint-search?config=...&q=<feast or saint> — exact-name Synaxaria
+        search for one commemoration, returned as JSON for the Saint Descriptions
+        card to render on demand."""
+        query = parse_qs(parsed.query)
+        term = query.get("q", [""])[0].strip()
+        config_name = query.get("config", ["fb_config.local.json"])[0].strip() or "fb_config.local.json"
+
+        if synaxaria_client is None or not term:
+            self._send_json(HTTPStatus.OK, {"query": term, "entries": []})
+            return
+
+        api_key = None
+        try:
+            config = read_config((ROOT / config_name).resolve())
+            synaxaria_cfg = _as_dict(config.get("synaxaria"))
+            api_key = str(synaxaria_cfg.get("api_key") or "").strip() or None
+        except Exception:
+            api_key = None
+
+        try:
+            records = synaxaria_client.search_saints(term, api_key=api_key)
+            entries = synaxaria_client.exact_search_entries(term, records)
+        except Exception:
+            entries = []
+
+        self._send_json(HTTPStatus.OK, {"query": term, "entries": entries})
+
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
 
         if parsed.path == "/run-stream":
             self._handle_sse(parsed)
+            return
+
+        if parsed.path == "/saint-search":
+            self._handle_saint_search(parsed)
             return
 
         if parsed.path not in {"/", "/index.html"}:
@@ -751,7 +832,7 @@ class Handler(BaseHTTPRequestHandler):
             )
             pretty_obj: dict[str, object] = report
             mode_text = "Upcoming Services Status"
-            content_html = _render_coverage_html(report)
+            content_html = _render_coverage_html(report, config_name)
 
             pretty = json.dumps(pretty_obj, ensure_ascii=False, indent=2)
 
@@ -817,6 +898,9 @@ class Handler(BaseHTTPRequestHandler):
       .ref-source {{ font-size: 0.8rem; color: var(--muted, #888); text-transform: uppercase; letter-spacing: 0.04em; }}
       .ref-link {{ font-size: 0.8rem; margin-left: 6px; }}
       .ref-text {{ width: 100%; font-family: monospace; font-size: 0.85rem; }}
+      .ref-searched {{ border-top: 2px solid var(--accent, #6b7cff); margin-top: 14px; padding-top: 10px; }}
+      .ref-searched-note {{ font-size: 0.8rem; color: var(--muted, #888); text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 8px; }}
+      .ref-tag {{ font-size: 0.7rem; color: var(--accent, #6b7cff); border: 1px solid var(--accent, #6b7cff); border-radius: 4px; padding: 0 5px; margin-left: 6px; text-transform: uppercase; letter-spacing: 0.04em; }}
       .ghost-btn {{ background: transparent; border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; color: var(--text); }}
       .theme-btn {{ border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 7px; padding: 8px 12px; cursor: pointer; }}
       .mission-shell {{ margin-top: 12px; }}
@@ -877,7 +961,103 @@ class Handler(BaseHTTPRequestHandler):
         }}
         if (!hidden) {{
           card.scrollIntoView({{ behavior: 'smooth', block: 'nearest' }});
+          loadSearchedDescriptions(card);
         }}
+      }}
+
+      function buildSearchedEntry(entry, elemId) {{
+        const name = (entry && entry.name) ? String(entry.name) : '';
+        const source = (entry && entry.source) ? String(entry.source) : '';
+        const text = (entry && entry.life_text) ? String(entry.life_text) : '';
+        const url = (entry && entry.url) ? String(entry.url) : '';
+        const wrap = document.createElement('div');
+        wrap.className = 'ref-entry';
+        const head = document.createElement('div');
+        head.className = 'copy-row';
+        const label = document.createElement('p');
+        const strong = document.createElement('strong');
+        strong.textContent = name;
+        label.appendChild(strong);
+        const src = document.createElement('span');
+        src.className = 'ref-source';
+        src.textContent = ' ' + (source ? source.toUpperCase() : 'SYNAXARIA');
+        label.appendChild(src);
+        if (url) {{
+          const link = document.createElement('a');
+          link.className = 'ref-link';
+          link.href = url;
+          link.target = 'reference-pane';
+          link.rel = 'noopener';
+          link.textContent = 'source';
+          link.addEventListener('click', () => activateRightTab('reference'));
+          label.appendChild(document.createTextNode(' '));
+          label.appendChild(link);
+        }}
+        const tag = document.createElement('span');
+        tag.className = 'ref-tag';
+        tag.textContent = 'searched';
+        label.appendChild(tag);
+        head.appendChild(label);
+        const statusId = elemId + '-status';
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.textContent = 'Copy';
+        copyBtn.addEventListener('click', () => copyFromId(elemId, statusId));
+        head.appendChild(copyBtn);
+        const status = document.createElement('span');
+        status.id = statusId;
+        status.className = 'copy-status';
+        status.setAttribute('aria-live', 'polite');
+        head.appendChild(status);
+        wrap.appendChild(head);
+        const ta = document.createElement('textarea');
+        ta.id = elemId;
+        ta.className = 'ref-text';
+        ta.rows = 4;
+        ta.readOnly = true;
+        ta.value = text;
+        wrap.appendChild(ta);
+        return wrap;
+      }}
+
+      async function loadSearchedDescriptions(card) {{
+        if (!card || card.dataset.searchLoaded === '1' || card.dataset.searchLoading === '1') return;
+        let terms = [];
+        try {{ terms = JSON.parse(card.dataset.searchTerms || '[]'); }} catch (e) {{ terms = []; }}
+        if (!Array.isArray(terms) || !terms.length) {{ card.dataset.searchLoaded = '1'; return; }}
+        card.dataset.searchLoading = '1';
+        const body = card.querySelector('.ref-body');
+        if (!body) {{ card.dataset.searchLoading = '0'; return; }}
+        const section = document.createElement('div');
+        section.className = 'ref-searched';
+        const note = document.createElement('p');
+        note.className = 'ref-searched-note';
+        note.textContent = 'Searching ' + terms.length + ' commemoration(s)…';
+        section.appendChild(note);
+        body.appendChild(section);
+        const cfg = card.dataset.config || 'fb_config.local.json';
+        let added = 0;
+        let counter = 0;
+        for (const term of terms) {{
+          try {{
+            const resp = await fetch('/saint-search?config=' + encodeURIComponent(cfg) + '&q=' + encodeURIComponent(term));
+            if (!resp.ok) continue;
+            const data = await resp.json();
+            const entries = (data && Array.isArray(data.entries)) ? data.entries : [];
+            for (const entry of entries) {{
+              const elemId = card.id + '-search-' + (counter++);
+              section.appendChild(buildSearchedEntry(entry, elemId));
+              added++;
+            }}
+          }} catch (e) {{ /* ignore individual failures */ }}
+        }}
+        if (added) {{
+          note.textContent = 'Searched descriptions · exact-name matches';
+        }} else {{
+          section.remove();
+        }}
+        card.dataset.searchLoaded = '1';
+        card.dataset.searchLoading = '0';
       }}
 
       function initializeCollapseButtons() {{

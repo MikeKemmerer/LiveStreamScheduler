@@ -824,13 +824,17 @@ def _goarch_liturgy_data(day: date, synaxaria_api_key: str | None = None) -> dic
     (``name``/``source``/``life_text``/``url``) surfaced only as a manual,
     clearly-labeled copy/paste reference card — never auto-inserted.
 
+    ``feed_saints`` is the GOARCH ICS feed's commemoration list for the day (the
+    same names shown in the description). The UI uses it to search Synaxaria, on
+    demand, for any commemoration that has no biography in ``reference`` yet.
+
     Liturgical data comes from the GOARCH public Google Calendar ICS feed via
     ``goarch_calendar`` (feed discovery credit: dvogeldev/ortho-cal,
     https://github.com/dvogeldev/ortho-cal). Biographies come from the Project
     Synaxaria API via ``synaxaria_client``. Returns empty values on any failure
     so callers degrade gracefully.
     """
-    empty: dict[str, Any] = {"block": "", "reference": []}
+    empty: dict[str, Any] = {"block": "", "reference": [], "feed_saints": []}
     if goarch_calendar is None:
         return empty
     try:
@@ -840,6 +844,7 @@ def _goarch_liturgy_data(day: date, synaxaria_api_key: str | None = None) -> dic
 
         # Description commemorations come ONLY from the year-correct ICS feed.
         block = goarch_calendar.format_liturgy_block(liturgical_day)
+        feed_saints = [str(s).strip() for s in (liturgical_day.saints or []) if str(s).strip()]
 
         # Synaxaria is used solely for the manual reference card (biographies).
         reference: list[dict[str, Any]] = []
@@ -856,7 +861,7 @@ def _goarch_liturgy_data(day: date, synaxaria_api_key: str | None = None) -> dic
                 except Exception:
                     reference = []
 
-        return {"block": block, "reference": reference}
+        return {"block": block, "reference": reference, "feed_saints": feed_saints}
     except Exception:
         return empty
 
@@ -989,6 +994,7 @@ def build_calendar_youtube_coverage_report(
         liturgy = _goarch_liturgy_data(title_day, synaxaria_api_key)
         liturgy_block = liturgy["block"]
         liturgy_reference = liturgy["reference"]
+        liturgy_feed_saints = liturgy.get("feed_saints", [])
         draft_description = f"{title_base}\n\n{liturgy_block}" if liturgy_block else title_base
         missing_services.append(
             {
@@ -1007,6 +1013,7 @@ def build_calendar_youtube_coverage_report(
                 "title_feast_options": feast_options,
                 "description": draft_description,
                 "liturgy_reference": liturgy_reference,
+                "liturgy_feed_saints": liturgy_feed_saints,
             }
         )
 

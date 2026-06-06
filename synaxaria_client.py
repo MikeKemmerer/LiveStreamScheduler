@@ -35,6 +35,9 @@ _DEFAULT_CACHE_TTL = 7 * 24 * 60 * 60  # saints' lives are static; cache a week.
 # Process-lifetime memo of parsed daily payloads, keyed by "MM-DD".
 _MEM_CACHE: dict[str, list[dict]] = {}
 
+# Process-lifetime memo of parsed search payloads, keyed by the lowercase query.
+_SEARCH_MEM_CACHE: dict[str, list[dict]] = {}
+
 # Words to drop when normalizing names for matching.
 _STOPWORDS = {
     "the", "of", "at", "in", "and", "saint", "st", "holy", "martyr", "martyrs",
@@ -268,6 +271,129 @@ def merge_saint_names(
             seen_norms.add(norm)
 
     return result
+
+
+def search_saints(
+    query: str,
+    *,
+    api_key: str | None = None,
+    cache_dir: Path = _DEFAULT_CACHE_DIR,
+    cache_ttl: int = _DEFAULT_CACHE_TTL,
+    force_refresh: bool = False,
+) -> list[dict]:
+    """Full-text search the Synaxaria saints index for ``query``.
+
+    Calls ``GET /api/v1/saints?q=<query>`` and returns the raw record list
+    (each a dict with ``id``/``name``/``life_text``/``source``/``source_url``).
+    Unlike ``fetch_daily`` (whose ``date=MM-DD`` endpoint is year-agnostic and so
+    unreliable for moveable feasts), searching by name is a direct lookup and is
+    safe for fixed feasts and named saints.
+
+    Uses an in-memory memo and an on-disk JSON cache. Returns an empty list on
+    any failure so callers degrade gracefully.
+    """
+
+    q = (query or "").strip()
+    if not q:
+        return []
+
+    key = q.lower()
+    if not force_refresh and key in _SEARCH_MEM_CACHE:
+        return _SEARCH_MEM_CACHE[key]
+
+    slug = re.sub(r"[^a-z0-9]+", "-", key).strip("-") or "q"
+    path = cache_dir / f"search_{slug}.json"
+    if (
+        not force_refresh
+        and path.exists()
+        and (time.time() - path.stat().st_mtime) < cache_ttl
+    ):
+        try:
+            records = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(records, list):
+                _SEARCH_MEM_CACHE[key] = records
+                return records
+        except (OSError, json.JSONDecodeError):
+            pass  # fall through to a network fetch
+
+    url = f"{_API_BASE}/saints?q={quote(q)}"
+    try:
+        payload = _http_get_json(url, api_key)
+    except Exception:
+        if path.exists():
+            try:
+                records = json.loads(path.read_text(encoding="utf-8"))
+                if isinstance(records, list):
+                    _SEARCH_MEM_CACHE[key] = records
+                    return records
+            except (OSError, json.JSONDecodeError):
+                pass
+        return []
+
+    records = payload.get("data") if isinstance(payload, dict) else payload
+    if not isinstance(records, list):
+        records = []
+
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(records), encoding="utf-8")
+    except OSError:
+        pass  # caching is best-effort
+
+    _SEARCH_MEM_CACHE[key] = records
+    return records
+
+
+def exact_search_entries(query: str, records: list[dict]) -> list[dict]:
+    """Filter ``search_saints`` results to GOARCH-source exact-name matches.
+
+    Two strict requirements:
+
+    1. ``source`` must be GOARCH (other sources are dropped entirely).
+    2. The record's name must match ``query`` **exactly** — the same characters
+       after only trimming surrounding whitespace and collapsing runs of internal
+       whitespace, compared case-insensitively. Articles and honorifics are NOT
+       stripped, so "The Sunday of All Saints" matches only "The Sunday of All
+       Saints", not "Sunday of All Saints".
+
+    Only records with a non-empty biography are kept. Returns the same
+    ``{"name", "source", "life_text", "url"}`` shape as
+    ``reference_entries_from_records`` and de-duplicates by exact name.
+    """
+
+    def _exact_key(value: str) -> str:
+        return re.sub(r"\s+", " ", value).strip().casefold()
+
+    target = _exact_key(query)
+    if not target:
+        return []
+
+    entries: list[dict] = []
+    seen: set[str] = set()
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        if str(record.get("source") or "").strip().lower() != "goarch":
+            continue
+        name = str(record.get("name") or "").strip()
+        if _exact_key(name) != target:
+            continue
+        text = record.get("life_text")
+        if not isinstance(text, str) or not text.strip():
+            continue
+        dedupe = _exact_key(name)
+        if dedupe in seen:
+            continue
+        seen.add(dedupe)
+        entries.append(
+            {
+                "name": name,
+                "source": str(record.get("source") or "").strip(),
+                "life_text": text.strip(),
+                "url": str(record.get("source_url") or record.get("url") or "").strip(),
+            }
+        )
+    return entries
 
 
 def reference_entries_from_records(daily_records: list[dict]) -> list[dict]:
